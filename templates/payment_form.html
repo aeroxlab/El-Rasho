@@ -1,0 +1,49 @@
+<div class="payment-layout">
+    <form class="form-grid form-3" method="POST" enctype="multipart/form-data" action="{{ url_for('save_payment', owner_id=current_user.id) }}">
+        <label>Título del cuadro de pago
+            <input name="card_title" value="{{ profile.card_title }}" placeholder="Pago El Rasho">
+        </label>
+        <label>Nombre del titular
+            <input name="titular" value="{{ profile.titular }}" placeholder="Ej: Jorge Diaz">
+        </label>
+        <label>Número de pago
+            <input name="payment_number" value="{{ profile.payment_number }}" placeholder="Yape / Plin / cuenta">
+        </label>
+        <label>Mensaje para el cliente
+            <input name="payment_message" value="{{ profile.payment_message }}" placeholder="Paga aquí tus carreras pendientes">
+        </label>
+        <label>Color principal
+            <input type="color" name="color_primary" value="{{ profile.color_primary }}">
+        </label>
+        <label>Color secundario
+            <input type="color" name="color_secondary" value="{{ profile.color_secondary }}">
+        </label>
+        <label>Subir o cambiar QR
+            <input type="file" name="qr_file" accept="image/*">
+        </label>
+        <button class="btn btn-primary" type="submit">Guardar diseño de pago</button>
+    </form>
+
+    <aside class="pay-preview" style="--pay-primary: {{ profile.color_primary }}; --pay-secondary: {{ profile.color_secondary }};">
+        <h3>{{ profile.card_title or 'Pago El Rasho' }}</h3>
+        <p>{{ profile.payment_message or 'Paga aquí tus carreras pendientes' }}</p>
+        {% if profile.qr_filename %}
+            <img class="qr-preview" src="{{ url_for('uploaded_file', filename=profile.qr_filename) }}" alt="QR de pago">
+        {% else %}
+            <div class="qr-empty">Sin QR</div>
+        {% endif %}
+        <div class="pay-data">
+            <span>Titular</span><strong>{{ profile.titular or 'Sin titular' }}</strong>
+            <span>Número</span><strong>{{ profile.payment_number or 'Sin número' }}</strong>
+        </div>
+        <div class="action-row">
+            <button class="btn btn-small" type="button" data-copy="{{ profile.payment_number }}">Copiar número</button>
+            {% if profile.qr_filename %}
+                <a class="btn btn-small" href="{{ url_for('download_qr', owner_id=current_user.id) }}">Descargar QR</a>
+                <form method="POST" action="{{ url_for('delete_qr', owner_id=current_user.id) }}" onsubmit="return confirm('¿Eliminar QR?');">
+                    <button class="btn btn-danger btn-small" type="submit">Eliminar QR</button>
+                </form>
+            {% endif %}
+        </div>
+    </aside>
+</div>
