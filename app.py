@@ -47,12 +47,12 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # admin, driver, passenger
+    role = db.Column(db.String(20), nullable=False)
     full_name = db.Column(db.String(140), nullable=False)
     phone = db.Column(db.String(30), nullable=True)
     email = db.Column(db.String(140), nullable=True)
     active = db.Column(db.Boolean, default=True)
-    permission = db.Column(db.String(20), default="reader")  # reader/editor
+    permission = db.Column(db.String(20), default="reader")
     owner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     public_token = db.Column(db.String(64), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -73,7 +73,7 @@ class Trip(db.Model):
     origin = db.Column(db.String(180), nullable=False)
     destination = db.Column(db.String(180), nullable=False)
     price = db.Column(db.Float, default=0)
-    status = db.Column(db.String(20), default="pending")  # pending, paid, cancelled
+    status = db.Column(db.String(20), default="pending")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -110,8 +110,6 @@ class PaymentProfile(db.Model):
     owner = db.relationship("User", backref="payment_profile")
 
 
-# ----------------------------- Helpers -----------------------------
-
 def current_user():
     user_id = session.get("user_id")
     if not user_id:
@@ -121,10 +119,7 @@ def current_user():
 
 @app.context_processor
 def inject_globals():
-    return {
-        "current_user": current_user(),
-        "now": datetime.now(),
-    }
+    return {"current_user": current_user(), "now": datetime.now()}
 
 
 def login_required(roles=None):
@@ -146,7 +141,6 @@ def login_required(roles=None):
             return fn(*args, **kwargs)
 
         return wrapper
-
     return decorator
 
 
@@ -196,7 +190,7 @@ def slugify_text(text):
 
 
 def unique_username(base):
-    base = slugify_text(base)[:20] or "usuario"
+    base = slugify_text(base)[:22] or "usuario"
     candidate = base
     index = 1
     while User.query.filter_by(username=candidate).first():
@@ -212,15 +206,12 @@ def auto_credentials(full_name, phone, role):
     digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
     end_digits = digits[-3:] if len(digits) >= 3 else f"{random.randint(100, 999)}"
 
-    if role == "passenger":
-        username_base = f"{first}_{end_digits}"
-        password = f"{first}{end_digits}"
-    elif role == "driver":
+    if role == "driver":
         username_base = f"{first}_{second or 'taxi'}_{end_digits}"
         password = f"taxi{end_digits}"
     else:
         username_base = f"{first}_{end_digits}"
-        password = f"admin{end_digits}"
+        password = f"{first}{end_digits}"
 
     return unique_username(username_base), password
 
@@ -260,13 +251,8 @@ def balance_total(passenger_id):
 def passenger_breakdown(passenger_id):
     pending = trip_pending_total(passenger_id)
     advances = advances_total(passenger_id)
-    final_total = max(0.0, pending - advances)
-    return {
-        "pending": pending,
-        "advances": advances,
-        "total": final_total,
-        "has_advance": advances > 0,
-    }
+    total = max(0.0, pending - advances)
+    return {"pending": pending, "advances": advances, "total": total, "has_advance": advances > 0}
 
 
 def build_public_url(passenger):
@@ -284,6 +270,30 @@ def build_whatsapp_url(passenger):
     return f"https://wa.me/{phone}?text={quote(text)}" if phone else "#"
 
 
+def build_access_whatsapp_url(phone, full_name, username, password):
+    phone = normalize_phone(phone)
+    login_url = url_for("index", _external=True)
+    text = (
+        "🚕 El Rasho - Datos de acceso\n\n"
+        f"👤 Cliente: {full_name or '-'}\n"
+        f"🧾 Usuario: {username}\n"
+        f"🔐 Contraseña: {password}\n\n"
+        f"🔗 Ingresa aquí: {login_url}"
+    )
+    return f"https://wa.me/{phone}?text={quote(text)}" if phone else "#"
+
+
+def set_last_access_created(user, username, password):
+    session["last_access_created"] = {
+        "full_name": user.full_name,
+        "phone": user.phone or "",
+        "username": username,
+        "password": password,
+        "role": user.role,
+        "whatsapp_url": build_access_whatsapp_url(user.phone, user.full_name, username, password),
+    }
+
+
 def get_owned_passengers(owner_id):
     return User.query.filter_by(role="passenger", owner_id=owner_id).order_by(User.created_at.desc()).all()
 
@@ -293,46 +303,33 @@ def get_driver_passenger_count(driver):
 
 
 def create_user(username, password, role, full_name, phone=None, email=None, owner_id=None, permission="reader"):
-    requested_username = (username or "").strip()
-    requested_password = (password or "").strip()
-
-    generated_username = False
-    generated_password = False
-
-    if not requested_username or not requested_password:
+    username = (username or "").strip()
+    password = (password or "").strip()
+    if not username or not password:
         auto_user, auto_pass = auto_credentials(full_name, phone, role)
-        if not requested_username:
-            requested_username = auto_user
-            generated_username = True
-        if not requested_password:
-            requested_password = auto_pass
-            generated_password = True
+        username = username or auto_user
+        password = password or auto_pass
 
-    requested_username = requested_username.strip()
-    if not requested_username:
-        raise ValueError("El usuario es obligatorio.")
-    if User.query.filter_by(username=requested_username).first():
+    if User.query.filter_by(username=username).first():
         raise ValueError("Ese usuario ya existe. Usa otro usuario.")
 
     user = User(
-        username=requested_username,
+        username=username,
         role=role,
-        full_name=(full_name or "").strip() or requested_username,
+        full_name=(full_name or "").strip() or username,
         phone=(phone or "").strip(),
         email=(email or "").strip(),
         owner_id=owner_id,
         permission=permission if permission in ["reader", "editor"] else "reader",
         public_token=uuid.uuid4().hex if role == "passenger" else None,
     )
-    user.set_password(requested_password)
+    user.set_password(password)
     db.session.add(user)
     db.session.commit()
     if role in ["admin", "driver"]:
         ensure_payment_profile(user.id)
-    return user, requested_username, requested_password, generated_username, generated_password
+    return user, username, password
 
-
-# ----------------------------- Routes -----------------------------
 
 @app.route("/")
 def index():
@@ -388,7 +385,6 @@ def admin_dashboard():
     all_trips = Trip.query.order_by(Trip.created_at.desc()).limit(80).all()
     profile = ensure_payment_profile(admin.id)
     total_general = sum(balance_total(p.id) for p in all_passengers)
-    recent_advances = Advance.query.order_by(Advance.created_at.desc()).limit(60).all()
     return render_template(
         "admin_dashboard.html",
         drivers=drivers,
@@ -397,13 +393,13 @@ def admin_dashboard():
         all_trips=all_trips,
         profile=profile,
         total_general=total_general,
-        recent_advances=recent_advances,
         build_whatsapp_url=build_whatsapp_url,
         trip_pending_total=trip_pending_total,
         advances_total=advances_total,
         balance_total=balance_total,
         passenger_breakdown=passenger_breakdown,
         get_driver_passenger_count=get_driver_passenger_count,
+        last_access=session.get("last_access_created"),
     )
 
 
@@ -415,19 +411,18 @@ def driver_dashboard():
     trips = Trip.query.filter_by(owner_id=driver.id).order_by(Trip.created_at.desc()).limit(80).all()
     profile = ensure_payment_profile(driver.id)
     total_driver = sum(balance_total(p.id) for p in passengers)
-    recent_advances = Advance.query.filter_by(owner_id=driver.id).order_by(Advance.created_at.desc()).limit(60).all()
     return render_template(
         "driver_dashboard.html",
         passengers=passengers,
         trips=trips,
         profile=profile,
         total_driver=total_driver,
-        recent_advances=recent_advances,
         build_whatsapp_url=build_whatsapp_url,
         trip_pending_total=trip_pending_total,
         advances_total=advances_total,
         balance_total=balance_total,
         passenger_breakdown=passenger_breakdown,
+        last_access=session.get("last_access_created"),
     )
 
 
@@ -456,7 +451,7 @@ def passenger_dashboard():
 @login_required(["admin"])
 def admin_create_driver():
     try:
-        user, final_user, final_pass, gen_user, gen_pass = create_user(
+        created_user, final_user, final_pass = create_user(
             username=request.form.get("username"),
             password=request.form.get("password"),
             role="driver",
@@ -465,10 +460,8 @@ def admin_create_driver():
             email=request.form.get("email"),
             owner_id=current_user().id,
         )
-        flash(
-            f"Conductor creado correctamente. Usuario: {final_user} · Contraseña: {final_pass}",
-            "success"
-        )
+        set_last_access_created(created_user, final_user, final_pass)
+        flash(f"✅ Conductor creado correctamente. Usuario: {final_user} · Contraseña: {final_pass}", "success")
     except ValueError as e:
         flash(str(e), "danger")
     return redirect(url_for("admin_dashboard"))
@@ -479,7 +472,7 @@ def admin_create_driver():
 def create_passenger_route():
     actor = current_user()
     try:
-        user, final_user, final_pass, gen_user, gen_pass = create_user(
+        created_user, final_user, final_pass = create_user(
             username=request.form.get("username"),
             password=request.form.get("password"),
             role="passenger",
@@ -489,10 +482,8 @@ def create_passenger_route():
             owner_id=actor.id,
             permission=request.form.get("permission", "reader"),
         )
-        flash(
-            f"Pasajero creado correctamente. Usuario: {final_user} · Contraseña: {final_pass}",
-            "success"
-        )
+        set_last_access_created(created_user, final_user, final_pass)
+        flash(f"✅ Pasajero creado correctamente. Usuario: {final_user} · Contraseña: {final_pass}", "success")
     except ValueError as e:
         flash(str(e), "danger")
     return redirect(url_for("admin_dashboard" if actor.role == "admin" else "driver_dashboard"))
@@ -530,7 +521,6 @@ def delete_user(user_id):
         return redirect(request.referrer or url_for("admin_dashboard"))
     if actor.role == "driver" and (user.role != "passenger" or user.owner_id != actor.id):
         abort(403)
-
     user.active = False
     user.username = unique_username(f"archivado_{user.username}")
     db.session.commit()
@@ -556,7 +546,6 @@ def create_trip():
         price = float(str(request.form.get("price", "0")).replace(",", "."))
     except ValueError:
         price = 0
-
     trip = Trip(
         passenger_id=passenger.id,
         owner_id=passenger.owner_id,
@@ -586,7 +575,6 @@ def create_advance():
     if amount <= 0:
         flash("El adelanto debe ser mayor a cero.", "danger")
         return redirect(request.referrer or url_for("index"))
-
     advance = Advance(
         passenger_id=passenger.id,
         owner_id=passenger.owner_id,
@@ -798,25 +786,23 @@ def ticket_pdf(passenger_id):
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    brand_red = colors.HexColor(profile.color_primary or "#8d0b00")
+    brand_red = colors.HexColor(profile.color_primary or "#e10600")
     brand_yellow = colors.HexColor(profile.color_secondary or "#ffc400")
-    dark = colors.HexColor("#141414")
-    light = colors.HexColor("#f8f4ee")
-    gray = colors.HexColor("#5f5f5f")
+    dark = colors.HexColor("#171717")
+    light = colors.HexColor("#f8f2e8")
+    gray = colors.HexColor("#666666")
 
-    # Background header
     pdf.setFillColor(brand_red)
     pdf.roundRect(12 * mm, height - 40 * mm, width - 24 * mm, 28 * mm, 7 * mm, fill=1, stroke=0)
     pdf.setFillColor(light)
-    pdf.setFont("Helvetica-Bold", 21)
+    pdf.setFont("Helvetica-Bold", 22)
     pdf.drawString(18 * mm, height - 24 * mm, "EL RASHO")
     pdf.setFont("Helvetica", 9)
-    pdf.drawString(18 * mm, height - 30 * mm, "Detalle profesional de carreras pendientes")
-    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawString(18 * mm, height - 30 * mm, "Ticket de carreras y créditos")
     pdf.setFillColor(brand_yellow)
-    pdf.drawRightString(width - 18 * mm, height - 24 * mm, f"Cliente: {passenger.full_name}")
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawRightString(width - 18 * mm, height - 24 * mm, passenger.full_name)
 
-    # Info box
     y = height - 54 * mm
     pdf.setFillColor(light)
     pdf.roundRect(12 * mm, y - 24 * mm, width - 24 * mm, 24 * mm, 5 * mm, fill=1, stroke=0)
@@ -826,11 +812,10 @@ def ticket_pdf(passenger_id):
     pdf.drawString(78 * mm, y - 7 * mm, "Celular")
     pdf.drawString(132 * mm, y - 7 * mm, "Emitido")
     pdf.setFont("Helvetica", 10)
-    pdf.drawString(18 * mm, y - 14 * mm, passenger.full_name)
+    pdf.drawString(18 * mm, y - 14 * mm, passenger.full_name[:34])
     pdf.drawString(78 * mm, y - 14 * mm, passenger.phone or "-")
     pdf.drawString(132 * mm, y - 14 * mm, datetime.now().strftime("%d/%m/%Y %H:%M"))
 
-    # Table
     y = height - 86 * mm
     pdf.setFillColor(brand_yellow)
     pdf.roundRect(12 * mm, y, width - 24 * mm, 9 * mm, 3 * mm, fill=1, stroke=0)
@@ -844,15 +829,16 @@ def ticket_pdf(passenger_id):
 
     y -= 8 * mm
     pdf.setFont("Helvetica", 9)
-    row_fill_toggle = False
+    row_fill = False
     for trip in trips:
         if y < 70 * mm:
             pdf.showPage()
             y = height - 24 * mm
-        if row_fill_toggle:
-            pdf.setFillColor(colors.HexColor("#f5f0ea"))
+            pdf.setFont("Helvetica", 9)
+        if row_fill:
+            pdf.setFillColor(colors.HexColor("#f2eee7"))
             pdf.rect(12 * mm, y - 2 * mm, width - 24 * mm, 7 * mm, fill=1, stroke=0)
-        row_fill_toggle = not row_fill_toggle
+        row_fill = not row_fill
         pdf.setFillColor(dark)
         pdf.drawString(16 * mm, y, trip.created_at.strftime("%d/%m %H:%M"))
         pdf.drawString(50 * mm, y, (trip.origin or "-")[:18])
@@ -861,7 +847,6 @@ def ticket_pdf(passenger_id):
         pdf.drawRightString(192 * mm, y, f"S/ {float(trip.price or 0):.2f}")
         y -= 7 * mm
 
-    # Totals box
     y -= 5 * mm
     pdf.setFillColor(dark)
     pdf.roundRect(12 * mm, y - 28 * mm, width - 24 * mm, 28 * mm, 5 * mm, fill=1, stroke=0)
@@ -890,42 +875,31 @@ def ticket_pdf(passenger_id):
         y -= 6 * mm
         pdf.setFont("Helvetica", 8.7)
         for adv in advances[:8]:
-            text = f"• {adv.created_at.strftime('%d/%m/%Y %H:%M')} · S/ {float(adv.amount or 0):.2f}"
+            line = f"{adv.created_at.strftime('%d/%m/%Y %H:%M')} · S/ {float(adv.amount or 0):.2f}"
             if adv.note:
-                text += f" · {adv.note[:55]}"
+                line += f" · {adv.note[:55]}"
             pdf.setFillColor(dark)
-            pdf.drawString(15 * mm, y, text)
+            pdf.drawString(15 * mm, y, line)
             y -= 5 * mm
             if y < 40 * mm:
                 break
-        y -= 4 * mm
 
-    # Payment box
-    pay_box_y = 18 * mm
-    pay_box_h = 36 * mm
+    pay_y = 18 * mm
     pdf.setFillColor(light)
-    pdf.roundRect(12 * mm, pay_box_y, width - 24 * mm, pay_box_h, 5 * mm, fill=1, stroke=0)
+    pdf.roundRect(12 * mm, pay_y, width - 24 * mm, 36 * mm, 5 * mm, fill=1, stroke=0)
     pdf.setFillColor(dark)
     pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(18 * mm, pay_box_y + 28 * mm, profile.card_title or "Pago El Rasho")
+    pdf.drawString(18 * mm, pay_y + 28 * mm, profile.card_title or "Pago El Rasho")
     pdf.setFont("Helvetica", 9)
-    pdf.drawString(18 * mm, pay_box_y + 22 * mm, profile.payment_message or "Paga aquí tus carreras pendientes")
-    pdf.drawString(18 * mm, pay_box_y + 14 * mm, f"Titular: {profile.titular or '-'}")
-    pdf.drawString(18 * mm, pay_box_y + 8 * mm, f"Número: {profile.payment_number or '-'}")
+    pdf.drawString(18 * mm, pay_y + 22 * mm, (profile.payment_message or "Paga aquí tus carreras pendientes")[:78])
+    pdf.drawString(18 * mm, pay_y + 14 * mm, f"Titular: {profile.titular or '-'}")
+    pdf.drawString(18 * mm, pay_y + 8 * mm, f"Número: {profile.payment_number or '-'}")
 
     if profile.qr_filename:
         qr_path = os.path.join(UPLOAD_FOLDER, profile.qr_filename)
         if os.path.exists(qr_path):
             try:
-                pdf.drawImage(
-                    ImageReader(qr_path),
-                    width - 48 * mm,
-                    pay_box_y + 4 * mm,
-                    width=24 * mm,
-                    height=24 * mm,
-                    preserveAspectRatio=True,
-                    mask='auto'
-                )
+                pdf.drawImage(ImageReader(qr_path), width - 48 * mm, pay_y + 4 * mm, width=24 * mm, height=24 * mm, preserveAspectRatio=True, mask='auto')
             except Exception:
                 pass
 
@@ -953,12 +927,12 @@ def create_initial_admin():
     db.create_all()
     admin = User.query.filter_by(username="73221820").first()
     if not admin:
-        admin, _, _, _, _ = create_user(
+        admin, _, _ = create_user(
             username="73221820",
             password="jdiazg20",
             role="admin",
             full_name="Jorge Diaz",
-            phone="992657332",
+            phone="",
             email="",
         )
     admin.role = "admin"
@@ -970,15 +944,10 @@ def create_initial_admin():
     db.session.commit()
     ensure_payment_profile(admin.id)
 
-    # Reparar registros antiguos
-    passengers = User.query.filter_by(role="passenger").all()
-    changed = False
-    for passenger in passengers:
+    for passenger in User.query.filter_by(role="passenger").all():
         if not passenger.public_token:
             passenger.public_token = uuid.uuid4().hex
-            changed = True
-    if changed:
-        db.session.commit()
+    db.session.commit()
 
 
 with app.app_context():
