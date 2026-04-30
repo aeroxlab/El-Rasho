@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="splash" id="splashScreen">
+    <div class="speed-lines"></div>
+    <div class="transform-stage">
+        <div class="letters-assembly" aria-label="El Rasho">
+            <span style="--i:0">E</span>
+            <span style="--i:1">L</span>
+            <span class="spacer"></span>
+            <span style="--i:2">R</span>
+            <span style="--i:3">A</span>
+            <span style="--i:4">S</span>
+            <span style="--i:5">H</span>
+            <span style="--i:6">O</span>
+        </div>
+        <div class="spark-car">
+            <div class="car-piece hood"></div>
+            <div class="car-piece cabin"></div>
+            <div class="car-piece back"></div>
+            <div class="car-piece wheel wheel-left"></div>
+            <div class="car-piece wheel wheel-right"></div>
+            <div class="car-piece eye eye-left"></div>
+            <div class="car-piece eye eye-right"></div>
+            <div class="car-piece bolt-mark"></div>
+        </div>
+        <div class="transform-caption">Armando acceso seguro...</div>
+    </div>
+</section>
+
+<section class="login-page" id="loginPanel">
+    <div class="login-card">
+        <div class="login-logo">
+            <span class="bolt">⚡</span>
+            <div>
+                <h1>El Rasho</h1>
+                <p>Ingreso al sistema</p>
+            </div>
+        </div>
+        <form method="POST" action="{{ url_for('login') }}" class="form-grid">
+            <label>
+                Usuario
+                <input type="text" name="username" placeholder="Ingresa tu usuario" autocomplete="username" required>
+            </label>
+            <label>
+                Contraseña
+                <input type="password" name="password" placeholder="Ingresa tu contraseña" autocomplete="current-password" required>
+            </label>
+            <button class="btn btn-primary btn-full" type="submit">Entrar</button>
+        </form>
+        <p class="login-note">Admin maestro, conductores y pasajeros ingresan desde esta misma pantalla.</p>
+    </div>
+</section>
+{% endblock %}
