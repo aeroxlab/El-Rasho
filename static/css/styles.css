@@ -552,3 +552,69 @@ summary { cursor: pointer; color: var(--yellow); }
     }
     .access-actions{ justify-content:flex-start; }
 }
+
+
+/* ===== Ajustes puntuales finales sin alterar lógica ===== */
+.flash-stack{
+    pointer-events:none;
+    left:50%;
+    right:auto;
+    transform:translateX(-50%);
+    top:86px;
+    width:min(92vw,520px);
+}
+.flash{
+    text-align:center;
+    background:rgba(22,22,22,.92);
+    backdrop-filter:blur(12px);
+}
+.client-card{
+    display:grid;
+    gap:12px;
+}
+.client-top{
+    align-items:center;
+}
+.mini-breakdown{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    color:var(--muted);
+    font-size:13px;
+}
+.detail-block{
+    margin-top:16px;
+    padding:14px;
+    border-radius:16px;
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.08);
+}
+.detail-block summary{
+    cursor:pointer;
+    font-weight:900;
+    color:var(--yellow);
+    margin-bottom:10px;
+}
+.aerox-footer{
+    line-height:1.45;
+    font-size:14px;
+}
+.aerox-footer strong{
+    color:var(--white);
+}
+.login-page{
+    opacity:1 !important;
+    animation:none !important;
+}
+@media(max-width:650px){
+    .flash-stack{
+        top:78px;
+    }
+    .client-top{
+        display:grid;
+        grid-template-columns:1fr auto;
+    }
+    .client-top p{
+        overflow-wrap:anywhere;
+    }
+}
