@@ -1,30 +1,84 @@
 {% extends 'base.html' %}
 {% set title = 'Detalle público · El Rasho' %}
 {% block content %}
-<section class="public-loader" id="publicLoader">
-    <div class="loader-car"><span>EL RASHO</span><div class="loader-bolt">⚡</div></div>
-    <p>Preparando detalle de carreras...</p>
-</section>
-<section class="public-page public-detail is-hidden" id="publicDetail">
+<section class="public-page">
     <div class="public-card">
         <div class="public-head">
-            <div><p class="eyebrow">Link público</p><h1>Detalle de carreras</h1><p>Cliente: <b>{{ passenger.full_name }}</b></p></div>
-            <div class="hero-total compact-total"><span>Total pendiente</span><strong>S/ {{ '%.2f'|format(total) }}</strong></div>
+            <div>
+                <p class="eyebrow">Link público</p>
+                <h1>Detalle de carreras</h1>
+                <p>Cliente: <b>{{ passenger.full_name }}</b></p>
+            </div>
+            <div class="hero-total compact-total">
+                <span>Total pendiente</span>
+                <strong>S/ {{ '%.2f'|format(totals.total) }}</strong>
+            </div>
         </div>
-        <div class="balance-strip public-balance"><div><span>Subtotal carreras</span><strong>S/ {{ '%.2f'|format(balances.trips_total) }}</strong></div><div><span>Adelantos</span><strong>- S/ {{ '%.2f'|format(balances.advances_total) }}</strong></div><div><span>Total final</span><strong>S/ {{ '%.2f'|format(balances.final_total) }}</strong></div></div>
 
-        <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Origen</th><th>Destino</th><th>Estado</th><th>Precio</th></tr></thead><tbody>
-            {% for t in trips %}<tr><td>{{ t.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ t.origin }}</td><td>{{ t.destination }}</td><td><span class="status status-{{ t.status }}">{{ t.status }}</span></td><td>S/ {{ '%.2f'|format(t.price or 0) }}</td></tr>{% else %}<tr><td colspan="5">No hay carreras registradas.</td></tr>{% endfor %}
-        </tbody></table></div>
-        {% if advances %}<div class="advance-note"><b>Adelanto registrado:</b> S/ {{ '%.2f'|format(balances.advances_total) }}. Este monto ya fue descontado del total pendiente.</div>{% endif %}
+        <div class="breakdown-banner">
+            <div><span>Subtotal carreras</span><strong>S/ {{ '%.2f'|format(totals.pending) }}</strong></div>
+            <div><span>Adelantos</span><strong>- S/ {{ '%.2f'|format(totals.advances) }}</strong></div>
+            <div class="highlight"><span>Total final</span><strong>S/ {{ '%.2f'|format(totals.total) }}</strong></div>
+        </div>
+        {% if totals.has_advance %}
+        <p class="info-note">Este detalle incluye adelantos registrados a nombre de {{ passenger.full_name }} por S/ {{ '%.2f'|format(totals.advances) }}.</p>
+        {% endif %}
+
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Fecha</th><th>Origen</th><th>Destino</th><th>Estado</th><th>Precio</th></tr></thead>
+                <tbody>
+                    {% for t in trips %}
+                    <tr>
+                        <td>{{ t.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>{{ t.origin }}</td>
+                        <td>{{ t.destination }}</td>
+                        <td><span class="status status-{{ t.status }}">{{ t.status }}</span></td>
+                        <td>S/ {{ '%.2f'|format(t.price or 0) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">No hay carreras registradas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if advances %}
+        <div class="section-card inner-card">
+            <h3>Historial de adelantos</h3>
+            <div class="history-list compact-history">
+                {% for adv in advances %}
+                <div class="history-item">
+                    <div>
+                        <strong>S/ {{ '%.2f'|format(adv.amount or 0) }}</strong>
+                        <p>{{ adv.created_at.strftime('%d/%m/%Y %H:%M') }} {% if adv.note %}· {{ adv.note }}{% endif %}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
 
         <div class="two-column public-columns">
-            <aside class="pay-preview pay-client" style="{{ payment_style(profile) }}">
-                <h3>{{ profile.card_title or 'Pago El Rasho' }}</h3><p>{{ profile.payment_message or 'Paga aquí tus carreras pendientes' }}</p>
-                {% if profile.qr_filename %}<img class="qr-preview" src="{{ url_for('uploaded_file', filename=profile.qr_filename) }}" alt="QR de pago">{% else %}<div class="qr-empty">QR no configurado</div>{% endif %}
-                <div class="pay-data"><span>Titular</span><strong>{{ profile.titular or 'No configurado' }}</strong><span>Número</span><strong>{{ profile.payment_number or 'No configurado' }}</strong></div><button class="btn btn-small" type="button" data-copy="{{ profile.payment_number }}">Copiar número</button>
+            <aside class="pay-preview pay-client" style="--pay-primary: {{ profile.color_primary }}; --pay-secondary: {{ profile.color_secondary }};">
+                <h3>{{ profile.card_title or 'Pago El Rasho' }}</h3>
+                <p>{{ profile.payment_message or 'Paga aquí tus carreras pendientes' }}</p>
+                {% if profile.qr_filename %}
+                    <img class="qr-preview" src="{{ url_for('uploaded_file', filename=profile.qr_filename) }}" alt="QR de pago">
+                {% else %}
+                    <div class="qr-empty">QR no configurado</div>
+                {% endif %}
+                <div class="pay-data">
+                    <span>Titular</span><strong>{{ profile.titular or 'No configurado' }}</strong>
+                    <span>Número</span><strong>{{ profile.payment_number or 'No configurado' }}</strong>
+                </div>
+                <button class="btn btn-small" type="button" data-copy="{{ profile.payment_number }}">Copiar número</button>
             </aside>
-            <div class="section-card small-note"><h3>Descargar comprobante</h3><p>Descarga tu ticket PDF con nombre del cliente, detalle de carreras, adelantos y total pendiente.</p><a class="btn btn-primary" href="{{ url_for('ticket_pdf', passenger_id=passenger.id, token=passenger.public_token) }}">Descargar PDF</a></div>
+            <div class="section-card small-note">
+                <h3>Descargar comprobante</h3>
+                <p>Descarga tu ticket PDF con carreras, adelantos y total pendiente.</p>
+                <a class="btn btn-primary" href="{{ url_for('ticket_pdf', passenger_id=passenger.id, token=passenger.public_token) }}">Descargar PDF</a>
+            </div>
         </div>
     </div>
 </section>

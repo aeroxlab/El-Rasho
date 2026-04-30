@@ -19,8 +19,7 @@
             <input type="color" name="color_secondary" value="{{ profile.color_secondary }}">
         </label>
         <label>Subir o cambiar QR
-            <input type="file" name="qr_file" accept="image/*" data-qr-crop="1">
-            <small class="field-help">Puedes recortar y ajustar el tamaño del QR antes de guardar.</small>
+            <input type="file" name="qr_file" accept="image/*">
         </label>
         <button class="btn btn-primary" type="submit">Guardar diseño de pago</button>
     </form>
@@ -41,7 +40,7 @@
             <button class="btn btn-small" type="button" data-copy="{{ profile.payment_number }}">Copiar número</button>
             {% if profile.qr_filename %}
                 <a class="btn btn-small" href="{{ url_for('download_qr', owner_id=current_user.id) }}">Descargar QR</a>
-                <form method="POST" action="{{ url_for('delete_qr', owner_id=current_user.id) }}" data-confirm="¿Seguro que deseas eliminar el QR actual?">
+                <form method="POST" action="{{ url_for('delete_qr', owner_id=current_user.id) }}" onsubmit="return confirm('¿Eliminar QR?');">
                     <button class="btn btn-danger btn-small" type="submit">Eliminar QR</button>
                 </form>
             {% endif %}

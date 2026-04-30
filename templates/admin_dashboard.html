@@ -3,9 +3,9 @@
 {% block content %}
 <div class="dashboard-shell">
     <aside class="sidebar">
-        <div class="side-title"><span>⚡</span> Centro de control</div>
+        <div class="side-title"><span>⚡</span> Panel maestro</div>
         <a href="#resumen">Resumen</a>
-        <a href="#pasajeros">Pasajeros</a>
+        <a href="#pasajeros">Mis pasajeros</a>
         <a href="#movimientos">Movimientos</a>
         <a href="#conductores">Conductores</a>
         <a href="#pagos">Mi QR / pagos</a>
@@ -14,9 +14,9 @@
     <section class="content-panel">
         <section id="resumen" class="hero-panel">
             <div>
-                <p class="eyebrow">Panel principal</p>
-                <h1>Control total de El Rasho</h1>
-                <p>Administra pasajeros, conductores, carreras, adelantos, links públicos, PDF y QR de pago.</p>
+                <p class="eyebrow">Control principal</p>
+                <h1>El Rasho</h1>
+                <p>Control de pasajeros, conductores, carreras, adelantos, links públicos, PDF y QR de pago.</p>
             </div>
             <div class="hero-total">
                 <span>Total pendiente global</span>
@@ -34,9 +34,9 @@
         <section id="pasajeros" class="section-card">
             <div class="section-head">
                 <div>
-                    <p class="eyebrow">Admin</p>
-                    <h2>Crear pasajero propio</h2>
-                    <p class="section-text">Si dejas usuario o contraseña vacíos, el sistema los genera automáticamente.</p>
+                    <p class="eyebrow">Pasajeros propios</p>
+                    <h2>Crear pasajero</h2>
+                    <p class="section-text">Puedes dejar usuario o contraseña vacíos para generarlos automáticamente.</p>
                 </div>
             </div>
             <form class="form-grid form-4" method="POST" action="{{ url_for('create_passenger_route') }}">
@@ -49,10 +49,31 @@
                         <option value="editor">Editor limitado</option>
                     </select>
                 </label>
-                <label>Usuario (opcional)<input name="username" placeholder="Se genera si lo dejas vacío"></label>
-                <label>Contraseña (opcional)<input name="password" placeholder="Se genera si lo dejas vacío"></label>
+                <label>Usuario opcional<input name="username" placeholder="Se genera si está vacío"></label>
+                <label>Contraseña opcional<input name="password" placeholder="Se genera si está vacío"></label>
                 <button class="btn btn-primary" type="submit">Crear pasajero</button>
             </form>
+
+            {% if last_access %}
+            <div class="access-card">
+                <div>
+                    <p class="eyebrow">Acceso creado</p>
+                    <h3>🚕 {{ last_access.full_name }}</h3>
+                    <p class="access-muted">
+                        👤 Usuario: <b>{{ last_access.username }}</b> · 🔐 Contraseña: <b>{{ last_access.password }}</b>
+                    </p>
+                </div>
+                <div class="access-actions">
+                    <button class="btn btn-small" type="button" data-copy="{{ last_access.username }}">👤 Copiar usuario</button>
+                    <button class="btn btn-small" type="button" data-copy="{{ last_access.password }}">🔐 Copiar contraseña</button>
+                    {% if last_access.whatsapp_url != '#' %}
+                    <a class="btn btn-small btn-whatsapp" href="{{ last_access.whatsapp_url }}" target="_blank">📲 Enviar acceso</a>
+                    {% else %}
+                    <span class="btn btn-small btn-ghost">📵 Sin WhatsApp</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
 
             <h3 class="subheading">Mis pasajeros registrados</h3>
             <div class="cards-grid">
@@ -66,14 +87,14 @@
                         </div>
                         <strong>S/ {{ '%.2f'|format(totals.total) }}</strong>
                     </div>
-                    <div class="minor-breakdown">
+                    <div class="mini-breakdown">
                         <span>Carreras: S/ {{ '%.2f'|format(totals.pending) }}</span>
                         <span>Adelantos: S/ {{ '%.2f'|format(totals.advances) }}</span>
                     </div>
                     <div class="action-row">
                         <button class="btn btn-small" data-open-modal="modal-p-{{ p.id }}">Ver ficha</button>
                         <a class="btn btn-small btn-whatsapp" href="{{ build_whatsapp_url(p) }}" target="_blank">WhatsApp</a>
-                        <a class="btn btn-small link-animated" href="{{ url_for('public_passenger', token=p.public_token) }}" target="_blank" data-loader-text="Preparando link público...">Link</a>
+                        <a class="btn btn-small" href="{{ url_for('public_passenger', token=p.public_token) }}" target="_blank">Link</a>
                         <a class="btn btn-small" href="{{ url_for('ticket_pdf', passenger_id=p.id) }}">PDF</a>
                         <button class="btn btn-small btn-warning" data-open-modal="modal-a-{{ p.id }}">Adelanto</button>
                     </div>
@@ -81,7 +102,7 @@
                         <form class="inline-form" method="POST" action="{{ url_for('toggle_user', user_id=p.id) }}">
                             <button class="btn btn-warning btn-small" type="submit">{{ 'Activar' if not p.active else 'Bloquear' }}</button>
                         </form>
-                        <form class="inline-form" method="POST" action="{{ url_for('delete_user', user_id=p.id) }}" data-confirm="¿Seguro que deseas eliminar a {{ p.full_name }}? El historial quedará archivado.">
+                        <form class="inline-form" method="POST" action="{{ url_for('delete_user', user_id=p.id) }}" onsubmit="return confirm('¿Eliminar este pasajero? El historial quedará archivado.');">
                             <button class="btn btn-danger btn-small" type="submit">Eliminar</button>
                         </form>
                     </div>
@@ -94,8 +115,8 @@
                         <p><b>Permiso:</b> {{ p.permission|upper }}</p>
                         <div class="big-total">TOTAL PENDIENTE: S/ {{ '%.2f'|format(totals.total) }}</div>
                         <div class="breakdown-box">
-                            <span>Subtotal carreras pendientes: <b>S/ {{ '%.2f'|format(totals.pending) }}</b></span>
-                            <span>Adelantos registrados: <b>S/ {{ '%.2f'|format(totals.advances) }}</b></span>
+                            <span>Carreras pendientes: <b>S/ {{ '%.2f'|format(totals.pending) }}</b></span>
+                            <span>Adelantos: <b>S/ {{ '%.2f'|format(totals.advances) }}</b></span>
                         </div>
                         <form method="POST" action="{{ url_for('create_trip') }}" class="form-grid">
                             <input type="hidden" name="passenger_id" value="{{ p.id }}">
@@ -108,32 +129,29 @@
                         <div class="modal-actions">
                             <a class="btn btn-whatsapp" href="{{ build_whatsapp_url(p) }}" target="_blank">Enviar WhatsApp</a>
                             <a class="btn" href="{{ url_for('ticket_pdf', passenger_id=p.id) }}">Descargar PDF</a>
-                            <a class="btn link-animated" href="{{ url_for('public_passenger', token=p.public_token) }}" target="_blank" data-loader-text="Abriendo detalle público...">Ver link público</a>
+                            <a class="btn" href="{{ url_for('public_passenger', token=p.public_token) }}" target="_blank">Ver link público</a>
                         </div>
                     </div>
 
                     <div id="modal-a-{{ p.id }}" class="modal-template">
-                        <h2>Registrar adelanto · {{ p.full_name }}</h2>
+                        <h2>Adelanto · {{ p.full_name }}</h2>
                         <form method="POST" action="{{ url_for('create_advance') }}" class="form-grid">
                             <input type="hidden" name="passenger_id" value="{{ p.id }}">
-                            <label>Monto del adelanto<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
-                            <label>Detalle / nota<input name="note" placeholder="Ej: Adelanto de fin de semana"></label>
+                            <label>Monto<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+                            <label>Nota opcional<input name="note" placeholder="Ej: Adelanto recibido"></label>
                             <button class="btn btn-primary" type="submit">Guardar adelanto</button>
                         </form>
                         <h3 class="subheading">Historial de adelantos</h3>
-                        <div class="list-history">
+                        <div class="history-list">
                             {% for adv in p.advances|sort(attribute='created_at', reverse=true) %}
                             <div class="history-item">
-                                <div>
-                                    <strong>S/ {{ '%.2f'|format(adv.amount or 0) }}</strong>
-                                    <p>{{ adv.created_at.strftime('%d/%m/%Y %H:%M') }} {% if adv.note %}· {{ adv.note }}{% endif %}</p>
-                                </div>
-                                <form method="POST" action="{{ url_for('delete_advance', advance_id=adv.id) }}" data-confirm="¿Eliminar este adelanto de {{ p.full_name }}?">
+                                <div><b>S/ {{ '%.2f'|format(adv.amount or 0) }}</b><p>{{ adv.created_at.strftime('%d/%m/%Y %H:%M') }} {% if adv.note %}· {{ adv.note }}{% endif %}</p></div>
+                                <form method="POST" action="{{ url_for('delete_advance', advance_id=adv.id) }}" onsubmit="return confirm('¿Eliminar adelanto?');">
                                     <button class="btn btn-danger btn-small" type="submit">Eliminar</button>
                                 </form>
                             </div>
                             {% else %}
-                            <p class="empty">Aún no hay adelantos registrados.</p>
+                            <p class="empty">No hay adelantos registrados.</p>
                             {% endfor %}
                         </div>
                     </div>
@@ -173,7 +191,7 @@
                                         </select>
                                         <button class="btn btn-small" type="submit">Guardar</button>
                                     </form>
-                                    <form method="POST" action="{{ url_for('delete_trip', trip_id=t.id) }}" data-confirm="¿Eliminar esta carrera de {{ t.passenger.full_name }}?">
+                                    <form method="POST" action="{{ url_for('delete_trip', trip_id=t.id) }}" onsubmit="return confirm('¿Eliminar esta carrera?');">
                                         <button class="btn btn-danger btn-small" type="submit">Eliminar</button>
                                     </form>
                                 </details>
@@ -190,23 +208,24 @@
         <section id="conductores" class="section-card">
             <div class="section-head">
                 <div>
-                    <p class="eyebrow">Subadministradores</p>
+                    <p class="eyebrow">Conductores</p>
                     <h2>Crear conductor/taxista</h2>
-                    <p class="section-text">También puedes dejar usuario y contraseña vacíos para que se generen automáticamente.</p>
+                    <p class="section-text">Puedes dejar usuario o contraseña vacíos para generarlos automáticamente.</p>
                 </div>
             </div>
             <form class="form-grid form-4" method="POST" action="{{ url_for('admin_create_driver') }}">
                 <label>Nombre<input name="full_name" required placeholder="Nombre del conductor"></label>
                 <label>Celular<input name="phone" placeholder="WhatsApp"></label>
                 <label>Correo opcional<input name="email" type="email"></label>
-                <label>Usuario (opcional)<input name="username" placeholder="Se genera si lo dejas vacío"></label>
-                <label>Contraseña (opcional)<input name="password" placeholder="Se genera si lo dejas vacío"></label>
+                <label>Usuario opcional<input name="username" placeholder="Se genera si está vacío"></label>
+                <label>Contraseña opcional<input name="password" placeholder="Se genera si está vacío"></label>
                 <button class="btn btn-primary" type="submit">Crear conductor</button>
             </form>
 
             <h3 class="subheading">Conductores registrados</h3>
             <div class="cards-grid">
                 {% for d in drivers %}
+                {% set dp = d.payment_profile[0] if d.payment_profile else none %}
                 <article class="client-card driver-card {% if not d.active %}is-blocked{% endif %}">
                     <div class="client-top">
                         <div>
@@ -220,16 +239,14 @@
                         <form method="POST" action="{{ url_for('toggle_user', user_id=d.id) }}">
                             <button class="btn btn-warning btn-small" type="submit">{{ 'Activar' if not d.active else 'Bloquear' }}</button>
                         </form>
-                        <form method="POST" action="{{ url_for('delete_user', user_id=d.id) }}" data-confirm="¿Seguro que deseas eliminar a {{ d.full_name }}? El historial quedará archivado.">
+                        <form method="POST" action="{{ url_for('delete_user', user_id=d.id) }}" onsubmit="return confirm('¿Eliminar este conductor?');">
                             <button class="btn btn-danger btn-small" type="submit">Eliminar</button>
                         </form>
                     </div>
                     <div id="modal-d-{{ d.id }}" class="modal-template">
-                        {% set dp = d.payment_profile[0] if d.payment_profile else none %}
                         <h2>{{ d.full_name }}</h2>
                         <p><b>Usuario:</b> {{ d.username }}</p>
                         <p><b>Celular:</b> {{ d.phone or '-' }}</p>
-                        <p>Aquí puedes supervisar y diseñar el QR del conductor.</p>
                         <form class="form-grid" method="POST" enctype="multipart/form-data" action="{{ url_for('save_payment', owner_id=d.id) }}">
                             <label>Título del cuadro<input name="card_title" value="{{ dp.card_title if dp else 'Pago El Rasho' }}"></label>
                             <label>Titular<input name="titular" value="{{ dp.titular if dp else '' }}"></label>
@@ -237,10 +254,7 @@
                             <label>Mensaje<input name="payment_message" value="{{ dp.payment_message if dp else 'Paga aquí tus carreras pendientes' }}"></label>
                             <label>Color principal<input type="color" name="color_primary" value="{{ dp.color_primary if dp else '#e10600' }}"></label>
                             <label>Color secundario<input type="color" name="color_secondary" value="{{ dp.color_secondary if dp else '#ffc400' }}"></label>
-                            <label>Subir/Cambiar QR
-                                <input type="file" name="qr_file" accept="image/*" data-qr-crop="1">
-                                <small class="field-help">Puedes recortar y ajustar el tamaño del QR antes de guardar.</small>
-                            </label>
+                            <label>Subir/Cambiar QR<input type="file" name="qr_file" accept="image/*"></label>
                             <button class="btn btn-primary" type="submit">Guardar pago del conductor</button>
                         </form>
                         {% if dp and dp.qr_filename %}
@@ -259,5 +273,12 @@
             {% include 'payment_form.html' with context %}
         </section>
     </section>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal-box">
+        <button class="modal-close" id="modalClose">×</button>
+        <div id="modalContent"></div>
+    </div>
 </div>
 {% endblock %}
