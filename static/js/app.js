@@ -1,4 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.flash-stack .flash').forEach((flash) => {
+    setTimeout(() => {
+      flash.style.opacity = '0';
+      flash.style.transform = 'translateY(-8px)';
+      flash.style.transition = 'opacity .28s ease, transform .28s ease';
+      setTimeout(() => flash.remove(), 320);
+    }, 3000);
+  });
+
   const modalBackdrop = document.getElementById('modalBackdrop');
   const modalContent = document.getElementById('modalContent');
   const modalClose = document.getElementById('modalClose');
