@@ -67,8 +67,7 @@
             <p class="info-note">Este detalle incluye adelantos registrados a tu nombre por S/ {{ '%.2f'|format(totals.advances) }}.</p>
             {% endif %}
             <div class="action-row action-row-large">
-                <a class="btn btn-primary" href="{{ public_url }}" target="_blank">Ver link público</a>
-                <a class="btn" href="{{ url_for('ticket_pdf', passenger_id=passenger.id) }}">Descargar PDF</a>
+                <a class="btn btn-primary" href="{{ url_for('ticket_pdf', passenger_id=passenger.id) }}">Descargar PDF</a>
             </div>
         </div>
 

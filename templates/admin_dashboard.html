@@ -92,19 +92,7 @@
                         <span>Adelantos: S/ {{ '%.2f'|format(totals.advances) }}</span>
                     </div>
                     <div class="action-row">
-                        <button class="btn btn-small" data-open-modal="modal-p-{{ p.id }}">Ver ficha</button>
-                        <a class="btn btn-small btn-whatsapp" href="{{ build_whatsapp_url(p) }}" target="_blank">WhatsApp</a>
-                        <a class="btn btn-small" href="{{ url_for('public_passenger', token=p.public_token) }}" target="_blank">Link</a>
-                        <a class="btn btn-small" href="{{ url_for('ticket_pdf', passenger_id=p.id) }}">PDF</a>
-                        <button class="btn btn-small btn-warning" data-open-modal="modal-a-{{ p.id }}">Adelanto</button>
-                    </div>
-                    <div class="action-row action-row-tight">
-                        <form class="inline-form" method="POST" action="{{ url_for('toggle_user', user_id=p.id) }}">
-                            <button class="btn btn-warning btn-small" type="submit">{{ 'Activar' if not p.active else 'Bloquear' }}</button>
-                        </form>
-                        <form class="inline-form" method="POST" action="{{ url_for('delete_user', user_id=p.id) }}" onsubmit="return confirm('¿Eliminar este pasajero? El historial quedará archivado.');">
-                            <button class="btn btn-danger btn-small" type="submit">Eliminar</button>
-                        </form>
+                        <button class="btn btn-primary btn-small" data-open-modal="modal-p-{{ p.id }}">Abrir ficha</button>
                     </div>
 
                     <div id="modal-p-{{ p.id }}" class="modal-template">
@@ -130,6 +118,37 @@
                             <a class="btn btn-whatsapp" href="{{ build_whatsapp_url(p) }}" target="_blank">Enviar WhatsApp</a>
                             <a class="btn" href="{{ url_for('ticket_pdf', passenger_id=p.id) }}">Descargar PDF</a>
                             <a class="btn" href="{{ url_for('public_passenger', token=p.public_token) }}" target="_blank">Ver link público</a>
+                        </div>
+
+                        <details class="detail-block" open>
+                            <summary>Registrar adelanto / ver historial</summary>
+                            <form method="POST" action="{{ url_for('create_advance') }}" class="form-grid">
+                                <input type="hidden" name="passenger_id" value="{{ p.id }}">
+                                <label>Monto<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+                                <label>Nota opcional<input name="note" placeholder="Ej: Adelanto recibido"></label>
+                                <button class="btn btn-primary" type="submit">Guardar adelanto</button>
+                            </form>
+                            <div class="history-list">
+                                {% for adv in p.advances|sort(attribute='created_at', reverse=true) %}
+                                <div class="history-item">
+                                    <div><b>S/ {{ '%.2f'|format(adv.amount or 0) }}</b><p>{{ adv.created_at.strftime('%d/%m/%Y %H:%M') }} {% if adv.note %}· {{ adv.note }}{% endif %}</p></div>
+                                    <form method="POST" action="{{ url_for('delete_advance', advance_id=adv.id) }}" onsubmit="return confirm('¿Eliminar adelanto?');">
+                                        <button class="btn btn-danger btn-small" type="submit">Eliminar</button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <p class="empty">No hay adelantos registrados.</p>
+                                {% endfor %}
+                            </div>
+                        </details>
+
+                        <div class="modal-actions">
+                            <form class="inline-form" method="POST" action="{{ url_for('toggle_user', user_id=p.id) }}">
+                                <button class="btn btn-warning btn-small" type="submit">{{ 'Activar' if not p.active else 'Bloquear' }}</button>
+                            </form>
+                            <form class="inline-form" method="POST" action="{{ url_for('delete_user', user_id=p.id) }}" onsubmit="return confirm('¿Eliminar este pasajero? El historial quedará archivado.');">
+                                <button class="btn btn-danger btn-small" type="submit">Eliminar pasajero</button>
+                            </form>
                         </div>
                     </div>
 
