@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or 'El Rasho' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    {% if current_user %}
+    <header class="topbar">
+        <div class="brand-mini">
+            <span class="bolt">⚡</span>
+            <strong>El Rasho</strong>
+        </div>
+        <div class="topbar-actions">
+            <span class="user-pill">{{ current_user.full_name }} · {{ current_user.role|upper }}</span>
+            <a class="btn btn-ghost" href="{{ url_for('logout') }}">Salir</a>
+        </div>
+    </header>
+    {% endif %}
+
+    <main class="main-wrap {% if not current_user %}main-login{% endif %}">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% if current_user %}
+    <footer class="footer">
+        <strong>El Rasho</strong> · Sistema de control de carreras y créditos · © 2025-2026
+    </footer>
+    {% endif %}
+
+    <div class="modal-backdrop" id="modalBackdrop">
+        <div class="modal-box">
+            <button class="modal-close" id="modalClose">×</button>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <div class="confirm-backdrop" id="confirmBackdrop">
+        <div class="confirm-box">
+            <h3 id="confirmTitle">Confirmar acción</h3>
+            <p id="confirmText">¿Deseas continuar?</p>
+            <div class="confirm-actions">
+                <button type="button" class="btn btn-ghost" id="confirmCancel">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmAccept">Sí, continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="loader-backdrop" id="pageLoader">
+        <div class="loader-box">
+            <div class="loader-car">
+                <span></span><span></span><span></span>
+            </div>
+            <h3 id="loaderText">Preparando vista...</h3>
+            <p>Espera un momento...</p>
+        </div>
+    </div>
+
+    <div class="crop-backdrop" id="cropperBackdrop">
+        <div class="crop-box">
+            <div class="crop-head">
+                <h3>Ajustar QR</h3>
+                <button type="button" class="modal-close" id="cropperClose">×</button>
+            </div>
+            <div class="crop-image-wrap">
+                <img id="cropperImage" alt="Vista previa QR">
+            </div>
+            <p class="crop-note">Ajusta el recorte y guarda el QR antes de enviar.</p>
+            <div class="confirm-actions">
+                <button type="button" class="btn btn-ghost" id="cropperCancel">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="cropperApply">Usar este recorte</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

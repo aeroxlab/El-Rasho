@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% set title = 'Conductor · El Rasho' %}
+{% block content %}
+<div class="dashboard-shell">
+    <aside class="sidebar">
+        <div class="side-title"><span>⚡</span> Conductor</div>
+        <a href="#inicio">Inicio</a>
+        <a href="#pasajeros">Mis pasajeros</a>
+        <a href="#carreras">Movimientos</a>
+        <a href="#pagos">Mi QR / pagos</a>
+    </aside>
+
+    <section class="content-panel">
+        <section id="inicio" class="hero-panel hero-compact">
+            <div><p class="eyebrow">Control del conductor</p><h1>Mis clientes y carreras</h1><p>Registra carreras, adelantos, links por WhatsApp y configura tu propio QR de pago.</p></div>
+            <div class="hero-total"><span>Total pendiente</span><strong>S/ {{ '%.2f'|format(total_driver) }}</strong></div>
+        </section>
+
+        <section class="stats-grid"><article class="stat-card"><span>Mis pasajeros</span><strong>{{ passengers|length }}</strong></article><article class="stat-card"><span>Carreras recientes</span><strong>{{ trips|length }}</strong></article><article class="stat-card"><span>Mi acceso</span><strong>Activo</strong></article></section>
+
+        <section id="pasajeros" class="section-card">
+            <div class="section-head"><div><p class="eyebrow">Clientes</p><h2>Crear pasajero</h2></div><span class="hint">Usuario y contraseña pueden quedar vacíos para generarse automáticamente.</span></div>
+            <form class="form-grid form-4" method="POST" action="{{ url_for('create_passenger_route') }}">
+                <label>Nombre<input name="full_name" required placeholder="Nombre del pasajero"></label>
+                <label>Celular WhatsApp<input name="phone" placeholder="987654321"></label>
+                <label>Correo opcional<input name="email" type="email"></label>
+                <label>Permiso<select name="permission"><option value="reader">Lector</option><option value="editor">Editor limitado</option></select></label>
+                <label>Usuario automático/opcional<input name="username" placeholder="Vacío = automático"></label>
+                <label>Contraseña automática/opcional<input name="password" placeholder="Vacío = automática"></label>
+                <button class="btn btn-primary" type="submit">Crear pasajero</button>
+            </form>
+
+            <h3 class="subheading">Mis pasajeros registrados</h3>
+            <div class="cards-grid">
+                {% for p in passengers %}
+                {% set bal = passenger_balance(p.id) %}
+                <article class="client-card {% if not p.active %}is-blocked{% endif %}">
+                    <div class="client-top"><div><h3>{{ p.full_name }}</h3><p>{{ p.phone or 'Sin celular' }} · {{ p.permission|upper }}</p><p class="credential-line">Usuario: <b>{{ p.username }}</b> · Clave: <b>{{ p.access_password or 'No registrada' }}</b></p></div><strong>S/ {{ '%.2f'|format(bal.final_total) }}</strong></div>
+                    {% if bal.advances_total > 0 %}<div class="advance-chip">Adelanto descontado: S/ {{ '%.2f'|format(bal.advances_total) }}</div>{% endif %}
+                    <div class="action-row">
+                        <button class="btn btn-small" data-open-modal="modal-p-{{ p.id }}">Ver ficha</button>
+                        <button class="btn btn-small btn-warning" data-open-modal="advance-p-{{ p.id }}">Adelanto</button>
+                        <a class="btn btn-small btn-whatsapp" href="{{ build_whatsapp_url(p) }}" target="_blank">WhatsApp</a>
+                        <a class="btn btn-small public-link" href="{{ url_for('public_passenger', token=p.public_token) }}" target="_blank">Link</a>
+                        <a class="btn btn-small" href="{{ url_for('ticket_pdf', passenger_id=p.id) }}">PDF</a>
+                        <button class="btn btn-small" type="button" data-copy="{{ p.username }}">Copiar usuario</button>
+                        <button class="btn btn-small" type="button" data-copy="{{ p.access_password or '' }}">Copiar clave</button>
+                    </div>
+                    <div class="action-row compact-actions">
+                        <form class="inline-form" method="POST" action="{{ url_for('toggle_user', user_id=p.id) }}"><button class="btn btn-warning btn-small" type="submit">{{ 'Activar' if not p.active else 'Bloquear' }}</button></form>
+                        <form class="inline-form confirm-form" method="POST" action="{{ url_for('delete_user', user_id=p.id) }}" data-confirm="¿Eliminar este pasajero? Se desactiva el acceso, pero se conserva su historial."><button class="btn btn-danger btn-small" type="submit">Eliminar</button></form>
+                    </div>
+                    <div id="advance-p-{{ p.id }}" class="modal-template">
+                        <h2>Registrar adelanto</h2><p>Cliente: <b>{{ p.full_name }}</b></p><p>El adelanto se descontará del total pendiente del cliente.</p>
+                        <form method="POST" action="{{ url_for('add_advance', passenger_id=p.id) }}" class="form-grid">
+                            <label>Monto del adelanto<input name="amount" type="number" step="0.01" min="0.01" required placeholder="0.00"></label>
+                            <label>Nota opcional<input name="note" placeholder="Ej: Adelanto Yape / efectivo"></label>
+                            <button class="btn btn-primary" type="submit">Guardar adelanto</button>
+                        </form>
+                    </div>
+                    <div id="modal-p-{{ p.id }}" class="modal-template">
+                        <h2>{{ p.full_name }}</h2><p><b>Celular:</b> {{ p.phone or '-' }}</p><p><b>Usuario:</b> {{ p.username }} · <b>Clave:</b> {{ p.access_password or 'No registrada' }}</p>
+                        <div class="balance-box"><span>Subtotal carreras: S/ {{ '%.2f'|format(bal.trips_total) }}</span><span>Adelantos: - S/ {{ '%.2f'|format(bal.advances_total) }}</span><strong>Total pendiente: S/ {{ '%.2f'|format(bal.final_total) }}</strong></div>
+                        {% set advs = passenger_advances(p.id) %}{% if advs %}<h3>Historial de adelantos</h3><ul class="advance-list">{% for a in advs %}<li>{{ a.created_at.strftime('%d/%m/%Y %H:%M') }} · S/ {{ '%.2f'|format(a.amount) }} · {{ a.note }}</li>{% endfor %}</ul>{% endif %}
+                        <form method="POST" action="{{ url_for('create_trip') }}" class="form-grid"><input type="hidden" name="passenger_id" value="{{ p.id }}"><label>Origen<input name="origin" required placeholder="Lugar de origen"></label><label>Destino<input name="destination" required placeholder="Lugar de destino"></label><label>Precio<input name="price" type="number" step="0.01" required placeholder="0.00"></label><button class="btn btn-primary" type="submit">Guardar carrera</button></form>
+                        <div class="modal-actions"><a class="btn btn-whatsapp" href="{{ build_whatsapp_url(p) }}" target="_blank">Enviar WhatsApp</a><a class="btn" href="{{ url_for('ticket_pdf', passenger_id=p.id) }}">Descargar PDF</a><a class="btn public-link" href="{{ url_for('public_passenger', token=p.public_token) }}" target="_blank">Ver link público</a></div>
+                    </div>
+                </article>
+                {% else %}<p class="empty">Aún no tienes pasajeros.</p>{% endfor %}
+            </div>
+        </section>
+
+        <section id="carreras" class="section-card">
+            <div class="section-head"><div><p class="eyebrow">Movimientos</p><h2>Mis carreras recientes</h2></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Pasajero</th><th>Origen</th><th>Destino</th><th>Estado</th><th>Precio</th><th>Editar</th></tr></thead><tbody>
+                {% for t in trips %}<tr><td>{{ t.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ t.passenger.full_name }}</td><td>{{ t.origin }}</td><td>{{ t.destination }}</td><td><span class="status status-{{ t.status }}">{{ t.status }}</span></td><td>S/ {{ '%.2f'|format(t.price or 0) }}</td><td><details><summary>Editar</summary><form method="POST" action="{{ url_for('update_trip', trip_id=t.id) }}" class="mini-edit"><input name="origin" value="{{ t.origin }}"><input name="destination" value="{{ t.destination }}"><input name="price" type="number" step="0.01" value="{{ t.price }}"><select name="status"><option value="pending" {% if t.status=='pending' %}selected{% endif %}>Pendiente</option><option value="paid" {% if t.status=='paid' %}selected{% endif %}>Pagado</option><option value="cancelled" {% if t.status=='cancelled' %}selected{% endif %}>Anulado</option></select><button class="btn btn-small" type="submit">Guardar</button></form><form class="confirm-form" method="POST" action="{{ url_for('delete_trip', trip_id=t.id) }}" data-confirm="¿Eliminar esta carrera?"><button class="btn btn-danger btn-small" type="submit">Eliminar carrera</button></form></details></td></tr>{% else %}<tr><td colspan="7">Aún no hay carreras.</td></tr>{% endfor %}
+            </tbody></table></div>
+        </section>
+
+        <section id="pagos" class="section-card">
+            <div class="section-head"><div><p class="eyebrow">Mi cobro</p><h2>Diseñar mi QR para mis clientes</h2></div></div>
+            {% set owner_for_payment = current_user %}{% include 'payment_form.html' with context %}
+        </section>
+    </section>
+</div>
+<div class="modal-backdrop" id="modalBackdrop"><div class="modal-box"><button class="modal-close" id="modalClose">×</button><div id="modalContent"></div></div></div>
+{% endblock %}
