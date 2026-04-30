@@ -798,10 +798,10 @@ def ticket_pdf(passenger_id):
     pdf.setFont("Helvetica-Bold", 22)
     pdf.drawString(18 * mm, height - 24 * mm, "EL RASHO")
     pdf.setFont("Helvetica", 9)
-    pdf.drawString(18 * mm, height - 30 * mm, "Ticket de carreras y créditos")
+    pdf.drawString(18 * mm, height - 30 * mm, "Lista de carreras")
     pdf.setFillColor(brand_yellow)
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawRightString(width - 18 * mm, height - 24 * mm, passenger.full_name)
+    pdf.setFont("Helvetica-Bold", 17)
+    pdf.drawRightString(width - 18 * mm, height - 22 * mm, passenger.full_name[:24])
 
     y = height - 54 * mm
     pdf.setFillColor(light)
@@ -905,7 +905,7 @@ def ticket_pdf(passenger_id):
 
     pdf.setFillColor(gray)
     pdf.setFont("Helvetica", 8)
-    pdf.drawCentredString(width / 2, 8 * mm, "El Rasho · Ticket detallado de carreras y créditos")
+    pdf.drawCentredString(width / 2, 8 * mm, "AeroxLab · WEB DEVELOPER TEAM · © 2025-2026 Aerox Security Consulting LLC")
     pdf.save()
     buffer.seek(0)
     safe_name = slugify_text(passenger.full_name).replace("_", "-")
